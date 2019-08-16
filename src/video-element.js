@@ -4,19 +4,27 @@ function VideoElementPlayer(parentDiv, source, token) {
     this._token = token;
     this._clientId = null;
     this._player = null;
-    this._playPending = false;
     this._msgId = null;
     this._mediaOptions = null;
     this._isDrmClientLoaded = false;
     this._manifestParser = null;
     this._message = null;
 
+    this._createVideoElement = function () {
+        this._player = document.createElement("video");
+        this._player.autoplay = true;
+        this._player.poster = "assets/poster.png";
+        this._player.appendChild(this._createSource());
+        this._parentDiv.appendChild(this._player);
+        this._player.load();
+    }
+
     this._createSource = function () {
         let source = document.createElement("source");
         source.src = this._sourceUrl;
-        source.type = !this._mediaOptions
-            ? "application/dash+xml"
-            : "application/dash+xml;mediaOption=" + encodeURIComponent(JSON.stringify(this._mediaOptions));
+        source.type = this._mediaOptions
+            ? "application/dash+xml;mediaOption=" + encodeURIComponent(JSON.stringify(this._mediaOptions))
+            : "application/dash+xml";
         return source;
     }
 
@@ -29,31 +37,31 @@ function VideoElementPlayer(parentDiv, source, token) {
                     appId: "com.vualto.vudrm-tvos"
                 },
                 onSuccess: (result) => {
-                    this._clientId = result.clientId;
+                    resolve(result.clientId);
                 },
                 onFailure: (result) => {
                     console.error({ result: result });
                     return;
                 }
             });
-            resolve();
         });
     }
 
     this._sendPlayReadyMessage = (message) => {
-        console.log("clientID: ", this._clientId);
         request = webOS.service.request("luna://com.webos.service.drm", {
             method: "sendDrmMessage",
             parameters: {
                 "clientId": this._clientId,
                 "msgType": "application/vnd.ms-playready.initiator+xml",
                 "msg": message,
-                "drmSystemId": "9a04f079-9840-4286-ab92-e65be0885f95"
+                "drmSystemId": "urn:dvb:casystemid:19219"
             },
             onSuccess: function (result) {
                 console.log("playready response", result);
                 this._msgId = result.msgId;
-            },
+                this._setDRMOptions(this._token);
+                this._createVideoElement();
+            }.bind(this),
             onFailure: function (result) {
                 console.error({ result: result });
                 return;
@@ -63,24 +71,10 @@ function VideoElementPlayer(parentDiv, source, token) {
 
     this._setDRMOptions = function () {
         this._mediaOptions = {};
-        this._manifestParser = new ManifestParser(this._sourceUrl, this._token);
-        this._manifestParser.parseManifest().then(manifest => {
-            this._manifestParser.parsePlayReadyMessages(manifest).then(message => {
-                this._message = message;
-                this._mediaOptions.option = {};
-                this._mediaOptions.option.drm = {};
-                this._mediaOptions.option.drm.type = "playready";
-                this._mediaOptions.option.drm.clientId = this._clientId;
-            });
-        });
-    }
-
-    this._playbackSuccess = function () {
-        this._playPending = false;
-    }
-
-    this._playbackError = function (err) {
-        console.error(err);
+        this._mediaOptions.option = {};
+        this._mediaOptions.option.drm = {};
+        this._mediaOptions.option.drm.type = "playready";
+        this._mediaOptions.option.drm.clientId = this._clientId;
     }
 
     this._subscribeLicensingError = function () {
@@ -111,37 +105,32 @@ function VideoElementPlayer(parentDiv, source, token) {
     }
 }
 
-VideoElementPlayer.prototype.loadPlayer = function () {
-    if (!!this._token) this._setDRMOptions(this._token);
-    this._player = document.createElement("video");
-    this._player.poster = "assets/poster.png";
-
-    this._player.appendChild(this._createSource());
-    this._parentDiv.appendChild(this._player);
-    this._player.load();
+VideoElementPlayer.prototype.loadPlayer = function (clientId) {
+    this._clientId = clientId;
+    this._manifestParser = new ManifestParser(this._sourceUrl, this._token);
+    if (this._token) {
+        this._manifestParser.parseManifest().then(manifest => {
+            this._manifestParser.parsePlayReadyMessages(manifest).then(message => {
+                this._message = message;
+                if (!!this._token) {
+                    this._sendPlayReadyMessage(this._message, () => {
+                    });
+                }
+            });
+        });
+    } else {
+        this._createVideoElement();
+    }
 }
 
 VideoElementPlayer.prototype.play = function () {
-    if (this._playPending) {
-        console.info("a play request is pending try again in a few seconds");
-        return;
-    }
-
-    if (!!this._token) {
-        console.log("message", this._message);
-        this._sendPlayReadyMessage(this._clientId, this._message);
-        this._subscribeLicensingError();
-    }
-    this._playPending = true;
-    this._player.play().then(this._playbackSuccess.bind(this), this._playbackError.bind(this));
+    console.log("paused", this._player.paused);
+    if (this._player.paused) this._player.play().then(() => console.log("playback success"), (err) => console.error(err));
 }
 
+
 VideoElementPlayer.prototype.pause = function () {
-    if (this._playPending) {
-        console.info("a play request is pending try again in a few seconds");
-        return;
-    }
-    this._player.pause();
+    if (!this._player.paused) this._player.pause();
 }
 
 VideoElementPlayer.prototype.togglePause = function () {

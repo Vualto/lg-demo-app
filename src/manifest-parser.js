@@ -25,10 +25,12 @@ ManifestParser.prototype.parsePlayReadyMessages = function (manifest) {
 		let message = decodedMessage.split("").filter(this._isInvalidCharacter).join("");
 		message = message.substring(message.indexOf('<WRMHEADER'), message.length);
 		let XMLMessage = '<?xml version="1.0" encoding="utf-8"?>'
-			+ '<PlayReadyInitiator xmlns= "http://schemas.microsoft.com/DRM/2007/03/protocols/">'
+			+ '<PlayReadyInitiator xmlns="http://schemas.microsoft.com/DRM/2007/03/protocols/">'
 			+ '<LicenseAcquisition>'
 			+ '<Header>' + message + '</Header>'
+			+ '<SetCustomData>'
 			+ '<CustomData>' + this._token + '</CustomData>'
+			+ '</SetCustomData>'
 			+ '</LicenseAcquisition>'
 			+ '</PlayReadyInitiator>';
 		resolve(XMLMessage);
