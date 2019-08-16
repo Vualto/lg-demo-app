@@ -15,6 +15,10 @@ This repository is currently targeted at TVOS version 4.0
 2. Clone the repository: `git clone git@github.com:Vualto/vudrm-tvos.git`
 3. Use the tools built into the TVOS IDE to package and install the app on the emulator (non-DRM) local TV (DRM)
 
+## Mandatory conditions
+
+- to use DRM you will need to use MPEG-DASH with inline PlayReady thi is due to the need to construct the playready message to the `luna://com.webos.service.drm`, in order to do this you will need to decrypt the message from within the manifest, an example of how to do this can be found within the Manifest Parser.
+
 ## Useful links
 
 ### VUDRM
