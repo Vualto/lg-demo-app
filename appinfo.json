@@ -1,0 +1,12 @@
+{
+    "vendor": "Vualto",
+    "largeIcon": "assets/largeIcon.png",
+    "iconColor": "#92d400",
+    "icon": "assets/Icon.png",
+    "main": "index.html",
+    "id": "com.vualto.vudrm-tvos",
+    "title": "VUDRM",
+    "type": "web",
+    "version": "0.0.1",
+    "uiRevision":2
+}
